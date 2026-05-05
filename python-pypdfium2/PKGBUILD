@@ -1,7 +1,7 @@
 # Maintainer: Goodi <goodi@users.noreply.github.com>
 
 pkgname=python-pypdfium2
-pkgver=5.7.0
+pkgver=5.8.0
 pkgrel=1
 pkgdesc='An ABI-level Python 3 binding to PDFium (unofficial AUR package)'
 arch=('x86_64')
@@ -79,11 +79,8 @@ prepare() {
   bsdtar -xOf "${srcdir}/pdfium-linux-x64-${_pdfiumver}.tgz" include/fpdf_thumbnail.h > data/bindings/headers/fpdf_thumbnail.h
   bsdtar -xOf "${srcdir}/pdfium-linux-x64-${_pdfiumver}.tgz" include/fpdf_transformpage.h > data/bindings/headers/fpdf_transformpage.h
   bsdtar -xOf "${srcdir}/pdfium-linux-x64-${_pdfiumver}.tgz" include/fpdfview.h > data/bindings/headers/fpdfview.h
-
-  printf '{"major":149,"minor":0,"build":7825,"patch":0,"n_commits":0,"hash":null,"origin":"pdfium-binaries","flags":[]}
-' > data/linux_x64/version.json
-  printf '{"version":7825,"flags":[],"windows_cross":false}
-' > data/bindings/version.json
+  printf '%s\n' '{"major":149,"minor":0,"build":7825,"patch":0,"n_commits":0,"hash":null,"origin":"pdfium-binaries","flags":[]}' > data/linux_x64/version.json
+  printf '%s\n' '{"version":7825,"flags":[],"windows_cross":false}' > data/bindings/version.json
 }
 
 build() {

@@ -87,6 +87,15 @@ def write_basic_pkgbuild_update(pkg: dict[str, Any], latest: str, checksum: str,
     path.write_text(text)
 
 
+def replace_printf_json(text: str, output_path: str, json_value: str) -> str:
+    pattern = rf"^\s*printf\b[^>\n]*(?:\n['\"]?)?\s*>\s*{re.escape(output_path)}$"
+    replacement = f"  printf '%s\\n' '{json_value}' > {output_path}"
+    updated, count = re.subn(pattern, lambda _match: replacement, text, count=1, flags=re.MULTILINE)
+    if count != 1:
+        raise RuntimeError(f"Could not update {output_path}")
+    return updated
+
+
 def latest_github_tags(spec: dict[str, Any]) -> tuple[str, dict[str, str]]:
     repo = spec["repo"]
     tags = fetch_json(f"https://api.github.com/repos/{repo}/tags?per_page=100")
@@ -196,25 +205,15 @@ def apply_pypdfium2(pkg: dict[str, Any], result: dict[str, Any]) -> None:
     text = replace_once(text, r"^_pdfiumver=.*$", f"_pdfiumver={pdfium_ver}", "_pdfiumver")
     text = set_array_value(text, "sha256sums", 0, sdist_sha)
     text = set_array_value(text, "sha256sums_x86_64", 0, pdfium_sha)
-    text = replace_once(
+    text = replace_printf_json(
         text,
-        r"printf '\{\"major\":[^']+\}\\n' > data/linux_x64/version\.json",
-        (
-            "printf "
-            f"""'{{"major":{major},"minor":{minor},"build":{build},"patch":{patch},"n_commits":0,"hash":null,"origin":"pdfium-binaries","flags":[]}}\\n'"""
-            " > data/linux_x64/version.json"
-        ),
-        "pdfium version.json",
+        "data/linux_x64/version.json",
+        f'{{"major":{major},"minor":{minor},"build":{build},"patch":{patch},"n_commits":0,"hash":null,"origin":"pdfium-binaries","flags":[]}}',
     )
-    text = replace_once(
+    text = replace_printf_json(
         text,
-        r"printf '\{\"version\":[^']+\}\\n' > data/bindings/version\.json",
-        (
-            "printf "
-            f"""'{{"version":{build},"flags":[],"windows_cross":false}}\\n'"""
-            " > data/bindings/version.json"
-        ),
-        "bindings version.json",
+        "data/bindings/version.json",
+        f'{{"version":{build},"flags":[],"windows_cross":false}}',
     )
     path.write_text(text)
 
