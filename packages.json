@@ -1,0 +1,25 @@
+[
+  {
+    "dir": "coverup-pdf",
+    "latest": {
+      "type": "github-tags",
+      "repo": "digidigital/CoverUP"
+    },
+    "apply": {
+      "type": "simple-tarball",
+      "source_sha256_index": 0,
+      "url": "https://github.com/digidigital/CoverUP/archive/refs/tags/{tag}.tar.gz"
+    },
+    "aur_extra_files": ["coverup.desktop"]
+  },
+  {
+    "dir": "python-pypdfium2",
+    "latest": {
+      "type": "github-tags",
+      "repo": "pypdfium2-team/pypdfium2"
+    },
+    "apply": {
+      "type": "pypi-pypdfium2"
+    }
+  }
+]

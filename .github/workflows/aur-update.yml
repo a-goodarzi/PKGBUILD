@@ -1,0 +1,180 @@
+name: Update AUR Packages
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 4 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  discover-packages:
+    name: discover-packages
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.packages.outputs.packages }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Read package registry
+        id: packages
+        run: |
+          echo "packages=$(python scripts/update-aur-packages.py --list-dirs-json)" >> "$GITHUB_OUTPUT"
+
+  check-update:
+    name: check-update-${{ matrix.package }}
+    runs-on: ubuntu-latest
+    needs:
+      - discover-packages
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.discover-packages.outputs.packages) }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Check upstream version
+        run: |
+          python scripts/update-aur-packages.py \
+            --check "${{ matrix.package }}" \
+            --output ".check-result/${{ matrix.package }}.json"
+
+      - name: Upload check result
+        uses: actions/upload-artifact@v4
+        with:
+          name: update-check-${{ matrix.package }}
+          path: .check-result/${{ matrix.package }}.json
+          if-no-files-found: error
+
+  update-pkgbuilds:
+    name: update-pkgbuilds
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    needs:
+      - check-update
+    outputs:
+      changed: ${{ steps.commit.outputs.committed }}
+      commit_sha: ${{ steps.commit.outputs.commit_sha }}
+
+    steps:
+      - name: Install tools
+        run: |
+          pacman -Syu --noconfirm --needed base-devel git python
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Configure git
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global user.name "${{ vars.GIT_AUTHOR_NAME || 'aur-update-bot' }}"
+          git config --global user.email "${{ vars.GIT_AUTHOR_EMAIL || 'aur-update-bot@users.noreply.github.com' }}"
+
+      - name: Download check results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: update-check-*
+          path: .check-results
+          merge-multiple: true
+
+      - name: Apply package updates
+        id: apply
+        run: |
+          python scripts/update-aur-packages.py --apply-checks .check-results
+          if [ "$(cat .aur-updates-found)" = "1" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Regenerate .SRCINFO
+        if: steps.apply.outputs.changed == 'true'
+        run: |
+          useradd -m builder
+          chown -R builder:builder "$GITHUB_WORKSPACE"
+          while read -r pkgdir; do
+            su builder -c "cd \"$GITHUB_WORKSPACE/${pkgdir}\" && makepkg --printsrcinfo > .SRCINFO"
+          done < .aur-updated-packages
+
+      - name: Commit repository updates
+        id: commit
+        if: steps.apply.outputs.changed == 'true'
+        run: |
+          while read -r pkgdir; do
+            git add "${pkgdir}/PKGBUILD" "${pkgdir}/.SRCINFO"
+          done < .aur-updated-packages
+          if git diff --cached --quiet; then
+            echo "No repository diff after package update"
+            echo "committed=false" >> "$GITHUB_OUTPUT"
+            echo "commit_sha=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -m "Update AUR package versions"
+          git push
+          echo "committed=true" >> "$GITHUB_OUTPUT"
+          echo "commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload changed package list
+        if: steps.commit.outputs.committed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: aur-updated-packages
+          path: .aur-updated-packages
+          if-no-files-found: error
+
+  publish-aur:
+    name: publish-aur
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    needs:
+      - update-pkgbuilds
+    if: needs.update-pkgbuilds.outputs.changed == 'true'
+    env:
+      AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+
+    steps:
+      - name: Install tools
+        run: |
+          pacman -Syu --noconfirm --needed git openssh python
+
+      - name: Check out updated repository state
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.update-pkgbuilds.outputs.commit_sha }}
+
+      - name: Download changed package list
+        uses: actions/download-artifact@v4
+        with:
+          name: aur-updated-packages
+          path: .
+
+      - name: Configure AUR SSH
+        if: env.AUR_SSH_PRIVATE_KEY != ''
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$AUR_SSH_PRIVATE_KEY" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<'EOF'
+          Host aur.archlinux.org
+            User aur
+            IdentityFile ~/.ssh/aur
+            IdentitiesOnly yes
+          EOF
+
+      - name: Publish changed packages to AUR
+        if: env.AUR_SSH_PRIVATE_KEY != ''
+        run: |
+          while read -r pkgdir; do
+            scripts/push-aur.sh "${pkgdir}"
+          done < .aur-updated-packages
+
+      - name: Missing AUR key notice
+        if: env.AUR_SSH_PRIVATE_KEY == ''
+        run: |
+          echo "AUR_SSH_PRIVATE_KEY is not configured, so the GitHub repository was updated but AUR publishing was skipped."
