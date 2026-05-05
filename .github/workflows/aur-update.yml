@@ -126,6 +126,7 @@ jobs:
           name: aur-updated-packages
           path: .aur-updated-packages
           if-no-files-found: error
+          include-hidden-files: true
 
   publish-aur:
     name: publish-aur
