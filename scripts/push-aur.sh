@@ -20,7 +20,7 @@ fi
 repo_url="ssh://aur@aur.archlinux.org/${pkgbase}.git"
 if ! git clone "${repo_url}" "${workdir}/${pkgbase}"; then
   mkdir -p "${workdir}/${pkgbase}"
-  git -C "${workdir}/${pkgbase}" init
+  git -C "${workdir}/${pkgbase}" init --initial-branch=master
   git -C "${workdir}/${pkgbase}" remote add origin "${repo_url}"
 fi
 
