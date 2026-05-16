@@ -1,0 +1,24 @@
+pkgbase = jottr-bin
+	pkgdesc = Simple text editor for writers, journalists and researchers
+	pkgver = 1.4.3
+	pkgrel = 1
+	url = https://github.com/mfat/jottr
+	arch = x86_64
+	license = GPL-3.0-only
+	depends = bash
+	depends = hicolor-icon-theme
+	depends = python
+	depends = python-feedparser
+	depends = python-pyenchant
+	depends = python-pyqt5
+	depends = python-pyqt5-webengine
+	depends = python-pyxdg
+	depends = python-requests
+	depends = qt5-svg
+	provides = jottr
+	conflicts = jottr
+	options = !strip
+	source = https://github.com/mfat/jottr/releases/download/v1.4.3/jottr_1.4.3-1_all.deb
+	sha256sums = f4b6d3493eeccaf9ec66ace04f01ff71a789ce26b5f1d176caf7fa15355fa312
+
+pkgname = jottr-bin

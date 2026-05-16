@@ -13,13 +13,27 @@
     "aur_extra_files": ["coverup.desktop"]
   },
   {
-    "dir": "python-pypdfium2",
+    "dir": "jottr",
     "latest": {
       "type": "github-tags",
-      "repo": "pypdfium2-team/pypdfium2"
+      "repo": "mfat/jottr"
     },
     "apply": {
-      "type": "pypi-pypdfium2"
+      "type": "simple-tarball",
+      "source_sha256_index": 0,
+      "url": "https://github.com/mfat/jottr/archive/refs/tags/{tag}.tar.gz"
+    }
+  },
+  {
+    "dir": "jottr-bin",
+    "latest": {
+      "type": "github-tags",
+      "repo": "mfat/jottr"
+    },
+    "apply": {
+      "type": "simple-tarball",
+      "source_sha256_index": 0,
+      "url": "https://github.com/mfat/jottr/releases/download/{tag}/jottr_{version}-1_all.deb"
     }
   }
 ]
