@@ -58,8 +58,8 @@ jobs:
     needs:
       - check-update
     outputs:
-      changed: ${{ steps.commit.outputs.committed }}
-      commit_sha: ${{ steps.commit.outputs.commit_sha }}
+      publish: ${{ steps.publish-list.outputs.publish }}
+      commit_sha: ${{ steps.publish-list.outputs.commit_sha }}
 
     steps:
       - name: Install tools
@@ -119,8 +119,23 @@ jobs:
           echo "committed=true" >> "$GITHUB_OUTPUT"
           echo "commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Upload changed package list
-        if: steps.commit.outputs.committed == 'true'
+      - name: Prepare packages for AUR publishing
+        id: publish-list
+        run: |
+          if [ "${{ steps.commit.outputs.committed }}" = "true" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            python scripts/update-aur-packages.py --list-dirs > .aur-updated-packages
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "commit_sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "commit_sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload package publish list
+        if: steps.publish-list.outputs.publish == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: aur-updated-packages
@@ -134,7 +149,7 @@ jobs:
     container: archlinux:latest
     needs:
       - update-pkgbuilds
-    if: needs.update-pkgbuilds.outputs.changed == 'true'
+    if: needs.update-pkgbuilds.outputs.publish == 'true'
     env:
       AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
 
