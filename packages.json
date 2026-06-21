@@ -35,5 +35,17 @@
       "source_sha256_index": 0,
       "url": "https://github.com/mfat/jottr/releases/download/{tag}/jottr_{version}-1_all.deb"
     }
+  },
+  {
+    "dir": "safepaste",
+    "latest": {
+      "type": "github-tags",
+      "repo": "a-goodarzi/SafePaste"
+    },
+    "apply": {
+      "type": "simple-tarball",
+      "source_sha256_index": 0,
+      "url": "https://github.com/a-goodarzi/SafePaste/archive/refs/tags/{tag}.tar.gz"
+    }
   }
 ]
